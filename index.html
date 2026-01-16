@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trip Malaysia - Hybrid Splitbill</title>
+    <title>Trip Malaysia - Hybrid with Edit</title>
     <style>
-        :root { --primary: #008080; --secondary: #f4f4f9; --accent: #ff6b6b; --settle: #4caf50; }
+        :root { --primary: #008080; --secondary: #f4f4f9; --accent: #ff6b6b; --settle: #4caf50; --edit: #ff9800; }
         body { font-family: -apple-system, sans-serif; background-color: var(--secondary); margin: 0; padding: 15px; color: #333; }
         .container { max-width: 500px; margin: auto; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
@@ -17,9 +17,11 @@
         .radio-box { display: flex; gap: 15px; align-items: center; padding: 5px 0; }
         .radio-box input { width: auto; margin: 0; }
         
-        button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
+        button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:active { opacity: 0.7; }
         .btn-settle { background-color: var(--settle); }
         
+        /* Person Debt Cards */
         .person-debt-card { border-left: 5px solid var(--primary); padding: 10px; background: #fafafa; margin-bottom: 15px; border-radius: 0 8px 8px 0; }
         .person-debt-card h4 { margin: 0 0 10px 0; color: #444; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         .debt-row { display: flex; justify-content: space-between; padding: 5px 0; font-weight: bold; color: var(--accent); }
@@ -28,18 +30,24 @@
         .mini-item { display: flex; justify-content: space-between; border-bottom: 1px dotted #eee; padding: 4px 0; }
         .text-green { color: #2e7d32; font-weight: bold; }
 
-        .rekap-table { width: 100%; border-collapse: collapse; font-size: 0.8em; }
-        .rekap-table th, .rekap-table td { border-bottom: 1px solid #eee; padding: 8px 4px; text-align: left; }
+        /* History Table & Edit Button */
+        .rekap-table { width: 100%; border-collapse: collapse; font-size: 0.82em; }
+        .rekap-table th, .rekap-table td { border-bottom: 1px solid #eee; padding: 10px 4px; text-align: left; }
+        .btn-edit { background-color: var(--edit); padding: 4px 8px; font-size: 0.8em; width: auto; margin: 0; }
         .clear-btn { background-color: #f44336; margin-top: 20px; padding: 8px; font-size: 0.8em; opacity: 0.6; }
+        
+        /* Animasi Highlight saat edit */
+        @keyframes highlight { from { background: #fff9c4; } to { background: white; } }
+        .highlight-edit { animation: highlight 2s; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>🇲🇾 Trip Expenses Hybrid</h2>
+    <h2 id="top">🇲🇾 Trip Expenses</h2>
 
-    <div class="card">
-        <h3>💸 Tambah Transaksi</h3>
+    <div class="card" id="inputCard">
+        <h3 id="formTitle">💸 Tambah Transaksi</h3>
         <label>Siapa yang bayar?</label>
         <select id="payer">
             <option value="Njel">Njel</option>
@@ -50,10 +58,10 @@
         <div class="type-group">
             <label>Metode Pembagian:</label>
             <div class="radio-box">
-                <input type="radio" name="splitType" value="all" checked onclick="toggleTarget(false)"> Bagi 3 (Splitbill)
+                <input type="radio" name="splitType" id="typeAll" value="all" checked onclick="toggleTarget(false)"> Bagi 3 (Splitbill)
             </div>
             <div class="radio-box">
-                <input type="radio" name="splitType" value="single" onclick="toggleTarget(true)"> Talangin 1 Orang
+                <input type="radio" name="splitType" id="typeSingle" value="single" onclick="toggleTarget(true)"> Talangin 1 Orang
             </div>
         </div>
 
@@ -70,20 +78,10 @@
         <input type="number" id="amount" placeholder="0.00" inputmode="decimal">
 
         <label>Deskripsi</label>
-        <input type="text" id="desc" placeholder="Misal: Makan Genting / Tiket">
+        <input type="text" id="desc" placeholder="Misal: Makan Genting">
 
-        <button onclick="addExpense()">Simpan Transaksi</button>
-    </div>
-
-    <div class="card" style="border: 2px solid var(--settle);">
-        <h3>🤝 Pelunasan Hutang</h3>
-        <label>Dari:</label>
-        <select id="fromPerson"><option>Njel</option><option>Ria</option><option>Ira</option></select>
-        <label>Ke:</label>
-        <select id="toPerson"><option>Ria</option><option>Njel</option><option>Ira</option></select>
-        <input type="number" id="payAmount" placeholder="Nominal RM" inputmode="decimal">
-        <input type="text" id="payDesc" placeholder="Keterangan (Cash/TF)">
-        <button class="btn-settle" onclick="addSettlement()">Konfirmasi Lunas</button>
+        <button onclick="addExpense()" id="submitBtn">Simpan Transaksi</button>
+        <button onclick="resetForm()" id="cancelBtn" style="display:none; background:#9e9e9e; margin-top:-5px;">Batal Edit</button>
     </div>
 
     <div class="card">
@@ -92,9 +90,10 @@
     </div>
 
     <div class="card">
-        <h3>📜 History</h3>
+        <h3>📜 History Log</h3>
+        <p style="font-size: 0.7em; color: #888; margin-top: -10px;">Klik Edit untuk memperbaiki data salah.</p>
         <table class="rekap-table">
-            <thead><tr><th>Desc</th><th>Pihak</th><th>Total</th></tr></thead>
+            <thead><tr><th>Desc</th><th>Total</th><th>Aksi</th></tr></thead>
             <tbody id="logBody"></tbody>
         </table>
         <button class="clear-btn" onclick="clearData()">Hapus Semua Data</button>
@@ -102,8 +101,9 @@
 </div>
 
 <script>
-    let entries = JSON.parse(localStorage.getItem('tripDataHybridV1')) || [];
+    let entries = JSON.parse(localStorage.getItem('tripDataHybridV2')) || [];
     const names = ["Njel", "Ria", "Ira"];
+    let editIndex = -1;
 
     function toggleTarget(show) {
         document.getElementById('targetPersonDiv').style.display = show ? 'block' : 'none';
@@ -118,33 +118,65 @@
 
         if (!amount || amount <= 0) return alert("Isi nominal!");
 
-        if (splitType === 'all') {
-            entries.push({ type: 'SPLIT_ALL', payer, amount, desc });
+        const newData = {
+            type: splitType === 'all' ? 'SPLIT_ALL' : 'SINGLE_DEBT',
+            payer,
+            borrower: splitType === 'all' ? null : borrower,
+            amount,
+            desc
+        };
+
+        if (editIndex > -1) {
+            entries[editIndex] = newData;
+            editIndex = -1;
         } else {
-            if (payer === borrower) return alert("Masa nalangin diri sendiri?");
-            entries.push({ type: 'SINGLE_DEBT', payer, borrower, amount, desc });
+            entries.push(newData);
         }
 
         saveAndRender();
-        document.getElementById('amount').value = ''; 
-        document.getElementById('desc').value = '';
+        resetForm();
     }
 
-    function addSettlement() {
-        const from = document.getElementById('fromPerson').value;
-        const to = document.getElementById('toPerson').value;
-        const amount = parseFloat(document.getElementById('payAmount').value);
-        const payDesc = document.getElementById('payDesc').value || "Bayar Hutang";
+    function editItem(index) {
+        const item = entries[index];
+        editIndex = index;
+        
+        // Isi form dengan data lama
+        document.getElementById('payer').value = item.payer;
+        document.getElementById('amount').value = item.amount;
+        document.getElementById('desc').value = item.desc;
+        
+        if (item.type === 'SPLIT_ALL') {
+            document.getElementById('typeAll').checked = true;
+            toggleTarget(false);
+        } else {
+            document.getElementById('typeSingle').checked = true;
+            toggleTarget(true);
+            document.getElementById('borrower').value = item.borrower;
+        }
 
-        if (from === to || !amount) return alert("Data tidak valid!");
-        entries.push({ type: 'SETTLE', from, to, amount, desc: payDesc });
-        saveAndRender();
-        document.getElementById('payAmount').value = '';
-        document.getElementById('payDesc').value = '';
+        // Ubah tampilan tombol
+        document.getElementById('formTitle').innerText = "✏️ Edit Transaksi";
+        document.getElementById('submitBtn').innerText = "Update Data";
+        document.getElementById('cancelBtn').style.display = "block";
+        document.getElementById('inputCard').classList.add('highlight-edit');
+        
+        // Scroll ke atas otomatis
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+        editIndex = -1;
+        document.getElementById('amount').value = ''; 
+        document.getElementById('desc').value = '';
+        document.getElementById('formTitle').innerText = "💸 Tambah Transaksi";
+        document.getElementById('submitBtn').innerText = "Simpan Transaksi";
+        document.getElementById('cancelBtn').style.display = "none";
+        document.getElementById('inputCard').classList.remove('highlight-edit');
     }
 
     function saveAndRender() {
-        localStorage.setItem('tripDataHybridV1', JSON.stringify(entries));
+        localStorage.setItem('tripDataHybridV2', JSON.stringify(entries));
         renderLog();
         renderDebts();
     }
@@ -152,18 +184,15 @@
     function renderLog() {
         const logBody = document.getElementById('logBody');
         logBody.innerHTML = "";
-        entries.slice().reverse().forEach(en => {
-            let label = "";
-            if (en.type === 'SPLIT_ALL') label = `${en.payer} (Bagi 3)`;
-            else if (en.type === 'SINGLE_DEBT') label = `${en.payer} ➔ ${en.borrower}`;
-            else label = `${en.from} ✅ ${en.to}`;
-
+        // Kita tampilkan dari yang terbaru, tapi index tetap pakai index asli array
+        for (let i = entries.length - 1; i >= 0; i--) {
+            const en = entries[i];
             logBody.innerHTML += `<tr>
-                <td>${en.desc}</td>
-                <td>${label}</td>
+                <td>${en.desc}<br><small style="color:#999">${en.payer}</small></td>
                 <td>RM ${en.amount.toFixed(2)}</td>
+                <td><button class="btn-edit" onclick="editItem(${i})">Edit</button></td>
             </tr>`;
-        });
+        }
     }
 
     function renderDebts() {
@@ -187,27 +216,18 @@
                         userDebts[en.payer] += en.amount;
                         historyForUser[en.payer].push({ desc: "(P) " + en.desc, amt: en.amount });
                     }
-                } else if (en.type === 'SETTLE') {
-                    if (en.from === user) {
-                        userDebts[en.to] -= en.amount;
-                        historyForUser[en.to].push({ desc: "✔️ " + en.desc, amt: -en.amount });
-                    }
                 }
             });
 
             let html = `<div class="person-debt-card"><h4>${user} kurang bayar ke:</h4>`;
             let hasAnyDebt = false;
-
             for (let target in userDebts) {
                 if (userDebts[target] > 0.01) {
                     hasAnyDebt = true;
                     html += `<div class="debt-row"><span>Ke ${target}</span><span>RM ${userDebts[target].toFixed(2)}</span></div>`;
                     html += `<div class="mini-history">`;
                     historyForUser[target].forEach(item => {
-                        html += `<div class="mini-item">
-                                    <span>${item.desc}</span>
-                                    <span class="${item.amt < 0 ? 'text-green' : ''}">RM ${Math.abs(item.amt).toFixed(2)}</span>
-                                 </div>`;
+                        html += `<div class="mini-item"><span>${item.desc}</span><span>RM ${item.amt.toFixed(2)}</span></div>`;
                     });
                     html += `</div>`;
                 }
