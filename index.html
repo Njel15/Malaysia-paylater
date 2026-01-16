@@ -3,21 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trip Malaysia Split Bill</title>
+    <title>Trip Malaysia Pay</title>
     <style>
-        :root { --primary: #008080; --secondary: #f4f4f9; --accent: #ff6b6b; }
+        :root { --primary: #008080; --secondary: #f4f4f9; --accent: #ff6b6b; --settle: #4caf50; }
         body { font-family: -apple-system, sans-serif; background-color: var(--secondary); margin: 0; padding: 15px; color: #333; }
         .container { max-width: 500px; margin: auto; }
-        h2 { text-align: center; color: var(--primary); margin-bottom: 10px; }
+        h2 { text-align: center; color: var(--primary); margin-bottom: 15px; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        h3 { margin-top: 0; font-size: 1.1em; display: flex; align-items: center; gap: 8px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.85em; }
         select, input, button { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: #e9f5f5; padding: 10px; border-radius: 8px; }
         .checkbox-group input { width: auto; margin: 0; }
         button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
-        .clear-btn { background-color: #f44336; margin-top: 10px; padding: 8px; font-size: 0.8em; opacity: 0.7; }
+        .btn-settle { background-color: var(--settle); }
+        .clear-btn { background-color: #f44336; margin-top: 20px; padding: 8px; font-size: 0.8em; opacity: 0.6; }
         
-        /* Tampilan Baru Kurang Bayar */
         .person-debt-card { border-left: 5px solid var(--primary); padding-left: 10px; margin-bottom: 15px; }
         .person-debt-card h4 { margin: 0 0 5px 0; color: #555; font-size: 1em; }
         .debt-detail { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #eee; font-size: 0.9em; }
@@ -25,6 +26,9 @@
 
         .rekap-table { width: 100%; border-collapse: collapse; font-size: 0.8em; }
         .rekap-table th, .rekap-table td { border-bottom: 1px solid #eee; padding: 8px 4px; text-align: left; }
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .bg-split { background: #e0f2f1; color: #00695c; }
+        .bg-pay { background: #e8f5e9; color: #2e7d32; }
     </style>
 </head>
 <body>
@@ -33,31 +37,46 @@
     <h2>🇲🇾 Trip Expenses</h2>
 
     <div class="card">
+        <h3>💸 Tambah Pengeluaran</h3>
         <label>Pembayar</label>
         <select id="payer">
             <option value="Njel">Njel</option>
             <option value="Ria">Ria</option>
             <option value="Ira">Ira</option>
         </select>
-
         <label>Nominal (RM)</label>
         <input type="number" id="amount" placeholder="0.00" inputmode="decimal">
-
         <label>Deskripsi</label>
-        <input type="text" id="desc" placeholder="Contoh: Makan / Grab">
-
+        <input type="text" id="desc" placeholder="Contoh: Makan siang">
         <div class="checkbox-group">
             <input type="checkbox" id="isSplit" checked>
             <label for="isSplit" style="margin:0">Bagi rata 3 orang?</label>
         </div>
-
         <button onclick="addExpense()">Tambah Pengeluaran</button>
     </div>
 
+    <div class="card" style="border: 2px solid var(--settle);">
+        <h3>🤝 Catat Bayar Hutang</h3>
+        <label>Siapa yang bayar?</label>
+        <select id="fromPerson">
+            <option value="Njel">Njel</option>
+            <option value="Ria">Ria</option>
+            <option value="Ira">Ira</option>
+        </select>
+        <label>Bayar ke siapa?</label>
+        <select id="toPerson">
+            <option value="Ria">Ria</option>
+            <option value="Njel">Njel</option>
+            <option value="Ira">Ira</option>
+        </select>
+        <label>Nominal (RM)</label>
+        <input type="number" id="payAmount" placeholder="0.00" inputmode="decimal">
+        <button class="btn-settle" onclick="addSettlement()">Konfirmasi Bayar</button>
+    </div>
+
     <div class="card">
-        <h3 style="margin-top:0">💰 Detail Kurang Bayar</h3>
-        <div id="debtSections">
-            </div>
+        <h3>💰 Detail Kurang Bayar</h3>
+        <div id="debtSections"></div>
     </div>
 
     <div class="card">
@@ -78,27 +97,45 @@
 </div>
 
 <script>
-    // Ambil data dari LocalStorage jika ada
-    let expenses = JSON.parse(localStorage.getItem('myExpenses')) || [];
+    let entries = JSON.parse(localStorage.getItem('myTripData')) || [];
     const names = ["Njel", "Ria", "Ira"];
 
     function addExpense() {
         const payer = document.getElementById('payer').value;
         const amount = parseFloat(document.getElementById('amount').value);
-        const desc = document.getElementById('desc').value || "Tanpa keterangan";
+        const desc = document.getElementById('desc').value || "Belanja";
         const isSplit = document.getElementById('isSplit').checked;
 
-        if (!amount || amount <= 0) return alert("Isi nominal dulu!");
+        if (!amount || amount <= 0) return alert("Nominal harus diisi!");
 
-        expenses.push({ payer, amount, desc, isSplit });
+        entries.push({ type: 'EXPENSE', payer, amount, desc, isSplit });
         saveAndRender();
-
         document.getElementById('amount').value = '';
         document.getElementById('desc').value = '';
     }
 
+    function addSettlement() {
+        const from = document.getElementById('fromPerson').value;
+        const to = document.getElementById('toPerson').value;
+        const amount = parseFloat(document.getElementById('payAmount').value);
+
+        if (from === to) return alert("Masa bayar ke diri sendiri? Pilih nama lain.");
+        if (!amount || amount <= 0) return alert("Nominal bayar harus diisi!");
+
+        entries.push({ 
+            type: 'SETTLE', 
+            from, 
+            to, 
+            amount, 
+            desc: `Bayar hutang ke ${to}` 
+        });
+
+        saveAndRender();
+        document.getElementById('payAmount').value = '';
+    }
+
     function saveAndRender() {
-        localStorage.setItem('myExpenses', JSON.stringify(expenses));
+        localStorage.setItem('myTripData', JSON.stringify(entries));
         renderLog();
         renderDebts();
     }
@@ -106,13 +143,14 @@
     function renderLog() {
         const logBody = document.getElementById('logBody');
         logBody.innerHTML = "";
-        expenses.slice().reverse().forEach(exp => {
+        entries.slice().reverse().forEach(en => {
+            const isSettle = en.type === 'SETTLE';
             logBody.innerHTML += `
                 <tr>
-                    <td>${exp.desc}</td>
-                    <td>${exp.payer}</td>
-                    <td>RM ${exp.amount}</td>
-                    <td>${exp.isSplit ? 'Split 3' : 'Pribadi'}</td>
+                    <td>${en.desc}</td>
+                    <td><b>${isSettle ? en.from : en.payer}</b></td>
+                    <td>RM ${en.amount}</td>
+                    <td><span class="badge ${isSettle ? 'bg-pay' : 'bg-split'}">${isSettle ? 'PAY' : (en.isSplit ? 'Split 3' : 'Self')}</span></td>
                 </tr>`;
         });
     }
@@ -121,46 +159,42 @@
         const debtSections = document.getElementById('debtSections');
         debtSections.innerHTML = "";
 
-        // Hitung saldo bersih antar tiap pasangan (Matrix)
-        // Utang[Pengutang][Penerima]
+        // Matrix utang dasar: utang[si-peminjam][si-pemberi-utang]
         let matrix = {
             "Njel": { "Ria": 0, "Ira": 0 },
             "Ria": { "Njel": 0, "Ira": 0 },
             "Ira": { "Njel": 0, "Ria": 0 }
         };
 
-        expenses.forEach(exp => {
-            if (exp.isSplit) {
-                let share = exp.amount / 3;
-                names.forEach(name => {
-                    if (name !== exp.payer) {
-                        matrix[name][exp.payer] += share;
-                    }
-                });
+        entries.forEach(en => {
+            if (en.type === 'EXPENSE') {
+                if (en.isSplit) {
+                    let share = en.amount / 3;
+                    names.forEach(name => {
+                        if (name !== en.payer) matrix[name][en.payer] += share;
+                    });
+                }
+            } else if (en.type === 'SETTLE') {
+                // Bayar hutang mengurangi saldo utang di matrix
+                matrix[en.from][en.to] -= en.amount;
             }
         });
 
-        // Sederhanakan hutang (Netting)
-        // Misal Njel hutang Ria 10, Ria hutang Njel 5 -> Njel hutang Ria 5.
+        // Sederhanakan (Netting) antar pasangan
         const pairs = [["Njel", "Ria"], ["Njel", "Ira"], ["Ria", "Ira"]];
         pairs.forEach(p => {
-            let p1 = p[0];
-            let p2 = p[1];
-            let net = matrix[p1][p2] - matrix[p2][p1];
-            if (net > 0) {
-                matrix[p1][p2] = net;
-                matrix[p2][p1] = 0;
+            let p1 = p[0], p2 = p[1];
+            let diff = matrix[p1][p2] - matrix[p2][p1];
+            if (diff > 0) {
+                matrix[p1][p2] = diff; matrix[p2][p1] = 0;
             } else {
-                matrix[p2][p1] = Math.abs(net);
-                matrix[p1][p2] = 0;
+                matrix[p2][p1] = Math.abs(diff); matrix[p1][p2] = 0;
             }
         });
 
-        // Tampilkan per Kolom Nama
         names.forEach(user => {
             let html = `<div class="person-debt-card"><h4>${user} kurang bayar ke:</h4>`;
             let hasDebt = false;
-
             for (let target in matrix[user]) {
                 if (matrix[user][target] > 0.01) {
                     hasDebt = true;
@@ -171,7 +205,6 @@
                         </div>`;
                 }
             }
-
             if (!hasDebt) html += `<div style="color:#888; font-size:0.8em;">Lunas / Tidak ada hutang</div>`;
             html += `</div>`;
             debtSections.innerHTML += html;
@@ -179,18 +212,14 @@
     }
 
     function clearData() {
-        if (confirm("Yakin mau hapus semua riwayat?")) {
-            expenses = [];
+        if (confirm("Hapus semua history?")) {
+            entries = [];
             saveAndRender();
         }
     }
 
-    // Jalankan saat load
-    renderAll();
-    function renderAll() {
-        renderLog();
-        renderDebts();
-    }
+    renderLog();
+    renderDebts();
 </script>
 
 </body>
