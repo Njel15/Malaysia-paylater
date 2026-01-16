@@ -41,15 +41,15 @@
 <body>
 
 <div class="container">
-    <h2>🇲🇾 Malaysia Paylater</h2>
-    <div class="status-sync" id="syncStatus">Menghubungkan...</div>
+    <h2>🇲🇾 Malaysia Expenses</h2>
+    <div class="status-sync" id="syncStatus">Syncing...</div>
 
     <div class="card" id="mainForm">
-        <h3 id="formTitle">💸 Tambah Transaksi</h3>
-        <label>Tanggal</label>
+        <h3 id="formTitle">🌂💵 Add Transaction</h3>
+        <label>Date</label>
         <input type="date" id="transDate">
         
-        <label>Pembayar</label>
+        <label>Paid By :</label>
         <select id="payer">
             <option value="Njel">Njel</option>
             <option value="Ria">Ria</option>
@@ -69,7 +69,7 @@
         </div>
 
         <div id="targetPersonDiv" style="display:none;">
-            <label>Ditalangin untuk siapa?</label>
+            <label>Who is this paid for?</label>
             <select id="borrower">
                 <option value="Ria">Ria</option>
                 <option value="Njel">Njel</option>
@@ -79,8 +79,8 @@
 
         <input type="number" id="amount" placeholder="Nominal RM" inputmode="decimal">
         <input type="text" id="desc" placeholder="Deskripsi">
-        <button onclick="addExpense()" id="submitBtn">Simpan & Sinkron ☁️</button>
-        <button onclick="resetForm()" id="cancelBtn" style="display:none; background:#999;">Batal Edit</button>
+        <button onclick="addExpense()" id="submitBtn">Save & Update</button>
+        <button onclick="resetForm()" id="cancelBtn" style="display:none; background:#999;">Cancel Edit</button>
     </div>
 
     <div class="card" style="border: 2px solid var(--final);">
@@ -89,7 +89,7 @@
     </div>
 
     <div class="card">
-        <h3>💰 Rincian Hutang</h3>
+        <h3>💰 Debt Details</h3>
         <div id="debtSections"></div>
     </div>
 
@@ -122,7 +122,7 @@
             document.getElementById('syncStatus').innerText = "☁️ Online | ID: " + BIN_ID;
             renderAll();
         } catch (e) {
-            document.getElementById('syncStatus').innerText = "❌ Gagal Sinkron Server";
+            document.getElementById('syncStatus').innerText = "❌ Failed Sync to Server";
         }
     }
 
@@ -134,10 +134,10 @@
                 headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
                 body: JSON.stringify({ entries: entries })
             });
-            document.getElementById('syncStatus').innerText = "✅ Sinkron Berhasil";
+            document.getElementById('syncStatus').innerText = "✅ Sync Successful";
             renderAll();
         } catch (e) {
-            alert("Gagal kirim data ke server.");
+            alert" Failed to Sync the Server.");
         }
     }
 
@@ -190,8 +190,8 @@
         editIndex = -1;
         document.getElementById('amount').value = ''; 
         document.getElementById('desc').value = '';
-        document.getElementById('formTitle').innerText = "💸 Tambah Transaksi";
-        document.getElementById('submitBtn').innerText = "Simpan & Sinkron ☁️";
+        document.getElementById('formTitle').innerText = "Add Transaction";
+        document.getElementById('submitBtn').innerText = "Save & Update";
         document.getElementById('cancelBtn').style.display = "none";
     }
 
@@ -233,7 +233,7 @@
             }
         });
 
-        // Hasil Akhir Netting
+        // Final Balance
         const pairs = [["Njel", "Ria"], ["Njel", "Ira"], ["Ria", "Ira"]];
         let finalHTML = "";
         pairs.forEach(p => {
