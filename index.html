@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Malaysia Expenses - Online Sync</title>
+    <title>Malaysia Expenses - Organized</title>
     <style>
         :root { --primary: #008080; --secondary: #f4f4f9; --accent: #ff6b6b; --settle: #4caf50; --edit: #ff9800; --final: #673ab7; }
         body { font-family: -apple-system, sans-serif; background-color: var(--secondary); margin: 0; padding: 15px; color: #333; }
@@ -28,6 +28,7 @@
         
         .mini-history { font-size: 0.8em; color: #666; margin-top: 5px; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #f0f0f0; }
         .mini-item { display: flex; justify-content: space-between; border-bottom: 1px dotted #eee; padding: 4px 0; }
+        .mini-date { font-size: 0.8em; color: #aaa; margin-right: 5px; }
         
         .rekap-table { width: 100%; border-collapse: collapse; font-size: 0.82em; }
         .rekap-table td { border-bottom: 1px solid #eee; padding: 12px 4px; vertical-align: middle; }
@@ -73,17 +74,14 @@
             </select>
         </div>
 
-        <label>Total Amount (RM)</label>
         <input type="number" id="amount" placeholder="0.00" inputmode="decimal">
-
-        <label>Description</label>
         <input type="text" id="desc" placeholder="e.g. Lunch / Grab">
         <button onclick="addExpense()" id="submitBtn">Save & Sync ☁️</button>
         <button onclick="resetForm()" id="cancelBtn" style="display:none; background:#999;">Cancel Edit</button>
     </div>
 
     <div class="card" style="border: 2px solid var(--final);">
-        <h3 style="color: var(--final);">⚖️ Net Settlement (Who pays who)</h3>
+        <h3 style="color: var(--final);">⚖️ Net Settlement</h3>
         <div id="finalSettlement"></div>
     </div>
 
@@ -93,7 +91,7 @@
     </div>
 
     <div class="card">
-        <h3>📜 History Log</h3>
+        <h3>📜 Sorted History Log</h3>
         <table class="rekap-table">
             <tbody id="logBody"></tbody>
         </table>
@@ -147,6 +145,7 @@
         if (!amount) return alert("Please enter amount!");
 
         const newData = {
+            id: Date.now(), // Unique ID for sorting tie-breaker
             date: document.getElementById('transDate').value,
             type: document.querySelector('input[name="splitType"]:checked').value === 'all' ? 'SPLIT_ALL' : 'SINGLE_DEBT',
             payer: document.getElementById('payer').value,
@@ -155,16 +154,25 @@
             desc: document.getElementById('desc').value || "Expense"
         };
 
-        if (editIndex > -1) entries[editIndex] = newData;
-        else entries.push(newData);
+        if (editIndex > -1) {
+            // Find the original item in the array to update it
+            entries[editIndex] = newData;
+            editIndex = -1;
+        } else {
+            entries.push(newData);
+        }
 
         saveData();
         resetForm();
     }
 
-    function editItem(index) {
+    function editItem(id) {
+        const index = entries.findIndex(item => item.id === id);
+        if (index === -1) return;
+
         const item = entries[index];
         editIndex = index;
+        
         document.getElementById('amount').value = item.amount;
         document.getElementById('desc').value = item.desc;
         document.getElementById('transDate').value = item.date;
@@ -198,7 +206,14 @@
         const logBody = document.getElementById('logBody');
         logBody.innerHTML = "";
         
-        entries.slice().reverse().forEach((en, i) => {
+        // --- 1. SORT ENTRIES BY DATE (Newest first) ---
+        // Tie-breaker: Newer added IDs come first if dates are identical
+        let sortedEntries = [...entries].sort((a, b) => {
+            if (b.date !== a.date) return b.date.localeCompare(a.date);
+            return b.id - a.id;
+        });
+
+        sortedEntries.forEach((en) => {
             let explanation = en.type === 'SPLIT_ALL' ? `By <b>${en.payer}</b> (Split 3)` : `By <b>${en.payer}</b> paid for <b>${en.borrower}</b>`;
             logBody.innerHTML += `<tr>
                 <td style="width:70%">
@@ -206,10 +221,11 @@
                     <span class="log-explanation">${en.date} | ${explanation}</span>
                 </td>
                 <td style="width:20%; font-weight:bold;">RM ${en.amount.toFixed(2)}</td>
-                <td style="width:10%"><button class="btn-edit" onclick="editItem(${entries.length - 1 - i})">Edit</button></td>
+                <td style="width:10%"><button class="btn-edit" onclick="editItem(${en.id})">Edit</button></td>
             </tr>`;
         });
 
+        // --- 2. CALCULATE DEBTS ---
         let matrix = { "Njel": { "Ria": 0, "Ira": 0 }, "Ria": { "Njel": 0, "Ira": 0 }, "Ira": { "Njel": 0, "Ria": 0 } };
         let history = { "Njel": { "Ria": [], "Ira": [] }, "Ria": { "Njel": [], "Ira": [] }, "Ira": { "Njel": [], "Ria": [] } };
 
@@ -219,17 +235,18 @@
                 names.forEach(n => { 
                     if(n !== en.payer) { 
                         matrix[en.payer][n] += share; 
-                        history[n][en.payer].push({d: en.desc, a: share}); 
+                        history[n][en.payer].push({d: en.desc, a: share, dt: en.date}); 
                     } 
                 });
             } else if (en.type === 'SINGLE_DEBT') {
                 if(en.payer !== en.borrower) { 
                     matrix[en.payer][en.borrower] += en.amount; 
-                    history[en.borrower][en.payer].push({d: en.desc, a: en.amount}); 
+                    history[en.borrower][en.payer].push({d: en.desc, a: en.amount, dt: en.date}); 
                 }
             }
         });
 
+        // --- 3. RENDER NET SETTLEMENT ---
         const pairs = [["Njel", "Ria"], ["Njel", "Ira"], ["Ria", "Ira"]];
         let finalHTML = "";
         pairs.forEach(p => {
@@ -241,6 +258,7 @@
         });
         document.getElementById('finalSettlement').innerHTML = finalHTML || "<p style='text-align:center;color:#888'>All Settled</p>";
 
+        // --- 4. RENDER DEBT DETAILS WITH DATE ---
         const container = document.getElementById('debtSections');
         container.innerHTML = "";
         names.forEach(user => {
@@ -251,8 +269,13 @@
                     hasDebt = true;
                     html += `<div class="debt-row"><span>To ${target}</span><span>RM ${matrix[target][user].toFixed(2)}</span></div>`;
                     html += `<div class="mini-history">`;
-                    history[user][target].forEach(item => { 
-                        html += `<div class="mini-item"><span>${item.d}</span><span>RM ${item.a.toFixed(2)}</span></div>`; 
+                    // Sorting history by date for clear debt breakdown
+                    let sortedHistory = history[user][target].sort((a,b) => b.dt.localeCompare(a.dt));
+                    sortedHistory.forEach(item => { 
+                        html += `<div class="mini-item">
+                                    <span><span class="mini-date">${item.dt.split('-')[2]}/${item.dt.split('-')[1]}</span> ${item.d}</span>
+                                    <span>RM ${item.a.toFixed(2)}</span>
+                                 </div>`; 
                     });
                     html += `</div>`;
                 }
