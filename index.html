@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trip Malaysia - Final Splitbill</title>
+    <title>Trip Malaysia - Final Pay</title>
     <style>
         :root { --primary: #008080; --secondary: #f4f4f9; --accent: #ff6b6b; --settle: #4caf50; }
         body { font-family: -apple-system, sans-serif; background-color: var(--secondary); margin: 0; padding: 15px; color: #333; }
@@ -13,24 +13,20 @@
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.85em; }
         select, input, button { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         
-        /* Checkbox Splitbill Style */
         .checkbox-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: #e9f5f5; padding: 12px; border-radius: 8px; border: 1px solid #cee7e7; }
         .checkbox-group input { width: 20px; height: 20px; margin: 0; }
         
         button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
         .btn-settle { background-color: var(--settle); }
         
-        /* Section Detail Kurang Bayar */
         .person-debt-card { border-left: 5px solid var(--primary); padding: 10px; background: #fafafa; margin-bottom: 15px; border-radius: 0 8px 8px 0; }
         .person-debt-card h4 { margin: 0 0 10px 0; color: #444; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         .debt-row { display: flex; justify-content: space-between; padding: 5px 0; font-weight: bold; color: var(--accent); }
 
-        /* History Deskripsi di bawah Nama */
         .mini-history { font-size: 0.8em; color: #666; margin-top: 5px; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #f0f0f0; }
         .mini-item { display: flex; justify-content: space-between; border-bottom: 1px dotted #eee; padding: 4px 0; }
         .mini-item:last-child { border-bottom: none; }
-        .mini-desc { font-style: normal; color: #555; }
-        .text-red { color: #d32f2f; font-weight: bold; }
+        .text-green { color: #2e7d32; font-weight: bold; }
 
         .rekap-table { width: 100%; border-collapse: collapse; font-size: 0.8em; }
         .rekap-table th, .rekap-table td { border-bottom: 1px solid #eee; padding: 8px 4px; text-align: left; }
@@ -53,28 +49,23 @@
             <option value="Ria">Ria</option>
             <option value="Ira">Ira</option>
         </select>
-
-        <label>Nominal (RM)</label>
-        <input type="number" id="amount" placeholder="0.00" inputmode="decimal">
-
-        <label>Deskripsi</label>
-        <input type="text" id="desc" placeholder="Misal: Makan Nasi Lemak">
-
+        <input type="number" id="amount" placeholder="Nominal RM" inputmode="decimal">
+        <input type="text" id="desc" placeholder="Deskripsi (Misal: Makan Nasi Lemak)">
         <div class="checkbox-group">
             <input type="checkbox" id="isSplit" checked>
             <label for="isSplit" style="margin:0">Bagi rata 3 orang? (Splitbill)</label>
         </div>
-
         <button onclick="addExpense()">Tambah Pengeluaran</button>
     </div>
 
-    <div class="card" style="border-top: 4px solid var(--settle);">
+    <div class="card" style="border: 2px solid var(--settle);">
         <h3>🤝 Catat Bayar Hutang</h3>
         <label>Nama yang bayar:</label>
         <select id="fromPerson"><option>Njel</option><option>Ria</option><option>Ira</option></select>
         <label>Kurang bayar ke:</label>
         <select id="toPerson"><option>Ria</option><option>Njel</option><option>Ira</option></select>
         <input type="number" id="payAmount" placeholder="Nominal RM" inputmode="decimal">
+        <input type="text" id="payDesc" placeholder="Keterangan (Misal: Transfer Bank / Cash)">
         <button class="btn-settle" onclick="addSettlement()">Konfirmasi Bayar</button>
     </div>
 
@@ -94,7 +85,7 @@
 </div>
 
 <script>
-    let entries = JSON.parse(localStorage.getItem('tripDataFinal')) || [];
+    let entries = JSON.parse(localStorage.getItem('tripDataFinalV4')) || [];
     const names = ["Njel", "Ria", "Ira"];
 
     function addExpense() {
@@ -102,28 +93,36 @@
         const amount = parseFloat(document.getElementById('amount').value);
         const desc = document.getElementById('desc').value || "Pengeluaran";
         const isSplit = document.getElementById('isSplit').checked;
-
-        if (!amount || amount <= 0) return alert("Isi nominalnya!");
+        if (!amount) return alert("Isi nominal!");
 
         entries.push({ type: 'EXPENSE', payer, amount, desc, isSplit });
         saveAndRender();
-        document.getElementById('amount').value = ''; 
-        document.getElementById('desc').value = '';
+        document.getElementById('amount').value = ''; document.getElementById('desc').value = '';
     }
 
     function addSettlement() {
         const from = document.getElementById('fromPerson').value;
         const to = document.getElementById('toPerson').value;
         const amount = parseFloat(document.getElementById('payAmount').value);
-        if (from === to || !amount) return alert("Pilih nama berbeda & isi nominal!");
+        const payDesc = document.getElementById('payDesc').value || "Bayar Hutang"; // Mengambil deskripsi bayar
 
-        entries.push({ type: 'SETTLE', from, to, amount, desc: `Bayar hutang ke ${to}` });
+        if (from === to || !amount) return alert("Data tidak valid!");
+
+        entries.push({ 
+            type: 'SETTLE', 
+            from, 
+            to, 
+            amount, 
+            desc: payDesc // Deskripsi pembayaran disimpan di sini
+        });
+        
         saveAndRender();
         document.getElementById('payAmount').value = '';
+        document.getElementById('payDesc').value = '';
     }
 
     function saveAndRender() {
-        localStorage.setItem('tripDataFinal', JSON.stringify(entries));
+        localStorage.setItem('tripDataFinalV4', JSON.stringify(entries));
         renderLog();
         renderDebts();
     }
@@ -132,12 +131,11 @@
         const logBody = document.getElementById('logBody');
         logBody.innerHTML = "";
         entries.slice().reverse().forEach(en => {
-            const tipe = en.type === 'SETTLE' ? 'PAY' : (en.isSplit ? 'Split 3' : 'Self');
             logBody.innerHTML += `<tr>
                 <td>${en.desc}</td>
                 <td><b>${en.type==='SETTLE'?en.from:en.payer}</b></td>
                 <td>RM ${en.amount}</td>
-                <td><span class="badge ${en.type==='SETTLE'?'bg-pay':'bg-split'}">${tipe}</span></td>
+                <td><span class="badge ${en.type==='SETTLE'?'bg-pay':'bg-split'}">${en.type==='SETTLE'?'PAY':'EXP'}</span></td>
             </tr>`;
         });
     }
@@ -149,7 +147,6 @@
         names.forEach(user => {
             let debtsToOther = {}; 
             let historyToOther = {};
-
             names.forEach(n => { if(n !== user) { debtsToOther[n] = 0; historyToOther[n] = []; } });
 
             entries.forEach(en => {
@@ -162,7 +159,8 @@
                 } else if (en.type === 'SETTLE') {
                     if (en.from === user) {
                         debtsToOther[en.to] -= en.amount;
-                        historyToOther[en.to].push({ desc: "✔️ Pelunasan", amt: -en.amount });
+                        // Deskripsi bayar hutang muncul di sini
+                        historyToOther[en.to].push({ desc: "✔️ " + en.desc, amt: -en.amount });
                     }
                 }
             });
@@ -174,29 +172,24 @@
                 if (debtsToOther[target] > 0.01) {
                     hasAnyDebt = true;
                     html += `<div class="debt-row"><span>Ke ${target}</span><span>RM ${debtsToOther[target].toFixed(2)}</span></div>`;
-                    
-                    // Box History Deskripsi per Nama
                     html += `<div class="mini-history">`;
                     historyToOther[target].forEach(item => {
                         html += `<div class="mini-item">
-                                    <span class="mini-desc">${item.desc}</span>
-                                    <span class="${item.amt < 0 ? 'text-red' : ''}">RM ${item.amt.toFixed(2)}</span>
+                                    <span>${item.desc}</span>
+                                    <span class="${item.amt < 0 ? 'text-green' : ''}">RM ${item.amt.toFixed(2)}</span>
                                  </div>`;
                     });
                     html += `</div>`;
                 }
             }
-
-            if (!hasAnyDebt) html += `<div style="color:#aaa; font-size:0.8em;">Lunas / Tidak ada hutang</div>`;
+            if (!hasAnyDebt) html += `<div style="color:#aaa; font-size:0.8em; padding: 5px 0;">Lunas!</div>`;
             html += `</div>`;
             container.innerHTML += html;
         });
     }
 
-    function clearData() { if(confirm("Hapus semua history?")) { entries = []; saveAndRender(); } }
-
-    renderLog();
-    renderDebts();
+    function clearData() { if(confirm("Hapus semua?")) { entries = []; saveAndRender(); } }
+    renderLog(); renderDebts();
 </script>
 
 </body>
